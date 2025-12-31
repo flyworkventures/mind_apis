@@ -126,6 +126,9 @@ class AuthService {
           throw new Error('Invalid token format');
         }
 
+        // Get audience from token payload (Apple uses different client IDs)
+        const tokenAudience = decoded.payload?.aud;
+        
         // Apple's public key endpoint
         const client = jwksClient({
           jwksUri: 'https://appleid.apple.com/auth/keys',
@@ -137,12 +140,22 @@ class AuthService {
         const key = await client.getSigningKey(decoded.header.kid);
         const signingKey = key.getPublicKey();
 
-        // Verify the token
-        const verified = jwt.verify(identityToken, signingKey, {
+        // Verify options - use audience from token if available, otherwise use env var
+        const verifyOptions = {
           algorithms: ['RS256'],
           issuer: 'https://appleid.apple.com',
-          audience: process.env.APPLE_CLIENT_ID || process.env.APPLE_SERVICE_ID, // Your app's client ID or service ID
-        });
+        };
+        
+        // Use audience from token if available, otherwise fallback to env var
+        // Apple token'ında audience genellikle bundle ID veya service ID olabilir
+        if (tokenAudience) {
+          verifyOptions.audience = tokenAudience;
+        } else if (process.env.APPLE_CLIENT_ID || process.env.APPLE_SERVICE_ID) {
+          verifyOptions.audience = process.env.APPLE_CLIENT_ID || process.env.APPLE_SERVICE_ID;
+        }
+
+        // Verify the token
+        const verified = jwt.verify(identityToken, signingKey, verifyOptions);
 
         // Extract user information from token
         // Note: Apple only provides email on first login
@@ -210,5 +223,12 @@ class AuthService {
   }
 }
 
+// Export class
 module.exports = AuthService;
+
+// Also export static methods directly for compatibility
+module.exports.verifyGoogleToken = AuthService.verifyGoogleToken;
+module.exports.verifyFacebookToken = AuthService.verifyFacebookToken;
+module.exports.verifyAppleToken = AuthService.verifyAppleToken;
+module.exports.mapProviderDataToUser = AuthService.mapProviderDataToUser;
 

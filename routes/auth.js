@@ -53,6 +53,10 @@ router.post("/:provider", validateAuthRequest, async (req, res, next) => {
           body.identityToken,
           body.userIdentifier
         );
+        // Apple'dan gelen fullName'i providerData'ya ekle (boşluk kontrolü yok)
+        if (body.fullName && body.fullName.length > 0) {
+          providerData.name = body.fullName;
+        }
         break;
       default:
         return res.status(400).json({
@@ -231,6 +235,17 @@ router.put("/profile",
       const userId = req.userId;
       const { username, nativeLang, gender, answerData } = req.body;
 
+      console.log('📝 Profile update request:', {
+        userId,
+        username,
+        nativeLang,
+        gender,
+        answerData: answerData ? JSON.stringify(answerData) : (answerData === null ? 'null' : 'undefined'),
+        answerDataType: typeof answerData,
+        answerDataIsObject: answerData && typeof answerData === 'object' && !Array.isArray(answerData),
+        answerDataKeys: answerData && typeof answerData === 'object' ? Object.keys(answerData) : 'N/A'
+      });
+
       // Prepare update data
       const updateData = {};
       
@@ -243,11 +258,46 @@ router.put("/profile",
       if (gender !== undefined) {
         updateData.gender = gender;
       }
+      // answerData'yı mutlaka ekle (undefined değilse)
+      // answerData profil tamamlama için zorunlu, bu yüzden undefined olamaz
       if (answerData !== undefined) {
-        updateData.answerData = answerData;
+        // answerData null ise veya boş obje ise, hata ver
+        if (answerData === null) {
+          console.error('❌ answerData is null, this should not happen during profile completion');
+          return res.status(400).json({
+            success: false,
+            error: 'answerData cannot be null during profile completion'
+          });
+        }
+        
+        // answerData obje olmalı ve içinde veri olmalı
+        if (typeof answerData === 'object' && !Array.isArray(answerData)) {
+          if (Object.keys(answerData).length > 0) {
+            updateData.answerData = answerData;
+            console.log('✅ answerData added to updateData:', JSON.stringify(answerData));
+          } else {
+            console.error('❌ answerData is empty object');
+            return res.status(400).json({
+              success: false,
+              error: 'answerData cannot be empty'
+            });
+          }
+        } else {
+          console.error('❌ answerData is not a valid object:', typeof answerData);
+          return res.status(400).json({
+            success: false,
+            error: 'answerData must be an object'
+          });
+        }
+      } else {
+        console.error('❌ answerData is undefined, this is required for profile completion');
+        return res.status(400).json({
+          success: false,
+          error: 'answerData is required for profile completion'
+        });
       }
 
-      // Update user profile
+      // Update user profile (userId ile güncelleme yapıyoruz, duplicate kontrolü gereksiz)
       const updatedUser = await UserService.updateUser(userId, updateData);
 
       res.status(200).json({

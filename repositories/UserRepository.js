@@ -159,7 +159,18 @@ class UserRepository {
       }
       if (userData.answerData !== undefined) {
         updateFields.push('answer_data = ?');
-        updateValues.push(userData.answerData ? JSON.stringify(userData.answerData) : null);
+        // answerData null değilse JSON stringify et, null ise null olarak kaydet
+        if (userData.answerData !== null && typeof userData.answerData === 'object') {
+          updateValues.push(JSON.stringify(userData.answerData));
+          console.log('✅ answerData JSON stringified:', JSON.stringify(userData.answerData));
+        } else if (userData.answerData === null) {
+          updateValues.push(null);
+          console.log('⚠️ answerData is null, setting to null');
+        } else {
+          // Eğer string ise direkt kullan (zaten stringified olabilir)
+          updateValues.push(userData.answerData);
+          console.log('⚠️ answerData is not object, using as is:', userData.answerData);
+        }
       }
       if (userData.lastPsychologicalProfile !== undefined) {
         updateFields.push('last_psychological_profile = ?');

@@ -7,17 +7,17 @@ const validateProfileCompletion = (req, res, next) => {
   const { body } = req;
   const errors = [];
 
-  // Username validation
+  // Username validation - Boşluk ve özel karakterlere izin ver
   if (body.username !== undefined) {
     if (!body.username || typeof body.username !== 'string') {
       errors.push('Username must be a non-empty string');
-    } else if (body.username.length < 3) {
-      errors.push('Username must be at least 3 characters long');
+    } else if (body.username.length < 1) {
+      errors.push('Username must be at least 1 character long');
     } else if (body.username.length > 255) {
       errors.push('Username must be less than 255 characters');
-    } else if (!/^[a-zA-Z0-9_]+$/.test(body.username)) {
-      errors.push('Username can only contain letters, numbers, and underscores');
     }
+    // Boşluk ve özel karakterlere izin ver (örn: "Ahmet Taha Tokmak")
+    // Unique kontrolü yok, herkes istediği ismi kullanabilir
   }
 
   // Gender validation

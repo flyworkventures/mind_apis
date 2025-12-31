@@ -25,12 +25,24 @@ class UserService {
         // User exists, update profile photo if provided
         const userData = UserRepository.mapRowToUser(existingUser);
         
+        const updateData = {};
+        
         // Update profile photo if it's different
         if (providerData.picture && providerData.picture !== userData.profilePhotoUrl) {
-          await UserRepository.update(existingUser.id, {
-            profilePhotoUrl: providerData.picture
-          });
-          userData.profilePhotoUrl = providerData.picture;
+          updateData.profilePhotoUrl = providerData.picture;
+        }
+        
+        // Eğer username hala temp ile başlıyorsa ve Apple'dan fullName geldiyse, güncelle
+        if (userData.username && userData.username.startsWith('temp_') && 
+            providerData.name && providerData.name.trim().length > 0) {
+          updateData.username = providerData.name.trim();
+        }
+        
+        // Eğer güncelleme yapılacak bir şey varsa
+        if (Object.keys(updateData).length > 0) {
+          await UserRepository.update(existingUser.id, updateData);
+          if (updateData.profilePhotoUrl) userData.profilePhotoUrl = updateData.profilePhotoUrl;
+          if (updateData.username) userData.username = updateData.username;
         }
 
         return new User(userData);
@@ -38,6 +50,16 @@ class UserService {
 
       // Create new user - İlk oturum açmada sadece temel bilgiler
       // Username ve diğer bilgiler sonradan profil tamamlama ile eklenecek
+      // Apple'dan gelen fullName varsa, onu username olarak kullan (boşluk kontrolü yok)
+      let username;
+      if (providerData.name && providerData.name.length > 0) {
+        // Apple'dan gelen fullName'i username olarak kullan (trim yok, boşluklar korunur)
+        username = providerData.name;
+      } else {
+        // Diğer durumlarda geçici username oluştur
+        username = `temp_${providerData.id}_${Date.now()}`;
+      }
+      
       const newUserData = {
         credential: credential,
         credentialData: {
@@ -45,9 +67,7 @@ class UserService {
           email: providerData.email,
           id: providerData.id
         },
-        // İlk oturum açmada username geçici olarak email'den oluşturulur
-        // Kullanıcı profil tamamladığında gerçek username set edilecek
-        username: `temp_${providerData.id}_${Date.now()}`,
+        username: username,
         gender: 'unknown',
         profilePhotoUrl: providerData.picture || null,
         answerData: null, // Profil tamamlanana kadar null
@@ -106,6 +126,7 @@ class UserService {
    */
   static async updateUser(userId, updateData) {
     try {
+      // Username unique değil, herkes istediği ismi kullanabilir
       const updatedUser = await UserRepository.update(userId, updateData);
       if (!updatedUser) {
         throw new Error('User not found');
