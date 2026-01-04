@@ -7,10 +7,10 @@ const validateAuthRequest = (req, res, next) => {
   const { provider } = req.params;
   const { body } = req;
 
-  if (!provider || !['google', 'facebook', 'apple'].includes(provider)) {
+  if (!provider || !['google', 'facebook', 'apple', 'guest'].includes(provider)) {
     return res.status(400).json({
       success: false,
-      error: 'Invalid provider. Must be one of: google, facebook, apple'
+      error: 'Invalid provider. Must be one of: google, facebook, apple, guest'
     });
   }
 
@@ -40,6 +40,9 @@ const validateAuthRequest = (req, res, next) => {
             error: 'identityToken or userIdentifier is required for Apple authentication'
           });
         }
+        break;
+      case 'guest':
+        // Guest login için body validation yok
         break;
     }
     next();

@@ -6,6 +6,7 @@ const consultants = require('./routes/consultants');
 const chats = require('./routes/chats');
 const appointments = require('./routes/appointments');
 const moods = require('./routes/moods');
+const notifications = require('./routes/notifications');
 const errorHandler = require('./middleware/errorHandler');
 const SocketHandler = require('./socket/socketHandler');
 require('dotenv').config();
@@ -37,6 +38,7 @@ app.use('/consultants', consultants);
 app.use('/chats', chats);
 app.use('/appointments', appointments);
 app.use('/moods', moods);
+app.use('/notifications', notifications);
 app.use('/video-call', require('./routes/videoCall'));
 
 // Health check endpoint
@@ -65,7 +67,7 @@ const RealtimeServer = require('./realtime/realtimeServer');
 const realtimeServer = new RealtimeServer(process.env.REALTIME_WS_PORT || 3001);
 realtimeServer.start();
 
-const PORT = process.env.PORT || 3013;
+const PORT = process.env.PORT || 3014;
 server.listen(PORT, () => {
   console.log(`Server started PORT: ${PORT}`);
   console.log(`Socket.IO server ready for legacy realtime connections`);

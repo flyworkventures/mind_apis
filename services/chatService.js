@@ -41,7 +41,7 @@ class ChatService {
   static async sendToWebhook(webhookData, webhookUrl = null) {
     try {
       // Use provided webhook URL or default
-      const url = webhookUrl || 'http://89.252.179.227:5678/webhook/chat-assistant';
+      const url = webhookUrl || 'http://89.252.179.227:5678/webhook-test/chat-assistant';
       
       console.log(`[WEBHOOK] 📤 Sending to webhook: ${url}`);
       

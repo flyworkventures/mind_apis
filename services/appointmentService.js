@@ -6,6 +6,8 @@
 const AppointmentRepository = require('../repositories/AppointmentRepository');
 const UserService = require('./userService');
 const ConsultantService = require('./consultantService');
+const OneSignalService = require('./oneSignalService');
+const NotificationRepository = require('../repositories/NotificationRepository');
 
 class AppointmentService {
   /**
@@ -48,8 +50,18 @@ class AppointmentService {
         'pending'
       );
 
+      // Get consultant name for notification
+      const consultantName = consultant.names?.tr || consultant.names?.en || consultant.names?.de || 'Koç';
+      
       // Prepare notification message
+      const notificationTitle = 'Yeni Randevu';
+      const notificationSubtitle = `${consultantName}, sizin için randevu oluşturdu`;
       const notificationMessage = 'Randevunuz oluşturuldu';
+
+      // Send notification via OneSignal and save to database (async, don't wait)
+      sendAppointmentNotification(userId, consultantId, notificationTitle, notificationSubtitle, appointment.id).catch(err => {
+        console.error('⚠️ Failed to send appointment notification:', err.message);
+      });
 
       return {
         success: true,
@@ -108,6 +120,57 @@ class AppointmentService {
       console.error('Error getting upcoming appointment by user ID:', error);
       throw error;
     }
+  }
+}
+
+/**
+ * Helper function to send appointment notification
+ * @param {number} userId - User ID
+ * @param {number} consultantId - Consultant ID
+ * @param {string} title - Notification title
+ * @param {string} subtitle - Notification subtitle
+ * @param {number} appointmentId - Appointment ID
+ */
+async function sendAppointmentNotification(userId, consultantId, title, subtitle, appointmentId) {
+  try {
+    const metadata = {
+      type: 'appointment',
+      appointmentId: appointmentId,
+      consultantId: consultantId,
+      timestamp: new Date().toISOString()
+    };
+
+    // Send via OneSignal (if configured)
+    let oneSignalResult = null;
+    try {
+      oneSignalResult = await OneSignalService.sendNotification(
+        userId,
+        title,
+        subtitle,
+        metadata,
+        'system_notification'
+      );
+    } catch (oneSignalError) {
+      console.error('⚠️ OneSignal error (continuing to save to DB):', oneSignalError.message);
+      // Continue even if OneSignal fails
+    }
+
+    // Save to database
+    await NotificationRepository.create({
+      user_id: userId,
+      type: 'system_notification',
+      title: title,
+      subtitle: subtitle,
+      metadata: {
+        ...metadata,
+        oneSignalId: oneSignalResult?.oneSignalId || null
+      }
+    });
+
+    console.log(`✅ Appointment notification sent to user ${userId}`);
+  } catch (error) {
+    console.error('❌ Error sending appointment notification:', error);
+    throw error;
   }
 }
 

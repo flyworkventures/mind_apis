@@ -32,10 +32,19 @@ class UserService {
           updateData.profilePhotoUrl = providerData.picture;
         }
         
+        // Misafir kullanıcı için username'i "Guest user" olarak güncelle
+        if (credential === 'guest' && userData.username !== 'Guest user') {
+          updateData.username = 'Guest user';
+        }
         // Eğer username hala temp ile başlıyorsa ve Apple'dan fullName geldiyse, güncelle
-        if (userData.username && userData.username.startsWith('temp_') && 
+        else if (userData.username && userData.username.startsWith('temp_') && 
             providerData.name && providerData.name.trim().length > 0) {
           updateData.username = providerData.name.trim();
+        }
+        
+        // Misafir kullanıcı için answerData'yı boş obje olarak ayarla (profil setup'a yönlendirilmemesi için)
+        if (credential === 'guest' && userData.answerData === null) {
+          updateData.answerData = {};
         }
         
         // Eğer güncelleme yapılacak bir şey varsa
@@ -43,6 +52,7 @@ class UserService {
           await UserRepository.update(existingUser.id, updateData);
           if (updateData.profilePhotoUrl) userData.profilePhotoUrl = updateData.profilePhotoUrl;
           if (updateData.username) userData.username = updateData.username;
+          if (updateData.answerData !== undefined) userData.answerData = updateData.answerData;
         }
 
         return new User(userData);
@@ -51,8 +61,12 @@ class UserService {
       // Create new user - İlk oturum açmada sadece temel bilgiler
       // Username ve diğer bilgiler sonradan profil tamamlama ile eklenecek
       // Apple'dan gelen fullName varsa, onu username olarak kullan (boşluk kontrolü yok)
+      // Misafir kullanıcı için "Guest user" kullan
       let username;
-      if (providerData.name && providerData.name.length > 0) {
+      if (credential === 'guest') {
+        // Misafir kullanıcı için sabit username
+        username = 'Guest user';
+      } else if (providerData.name && providerData.name.length > 0) {
         // Apple'dan gelen fullName'i username olarak kullan (trim yok, boşluklar korunur)
         username = providerData.name;
       } else {
@@ -70,12 +84,49 @@ class UserService {
         username: username,
         gender: 'unknown',
         profilePhotoUrl: providerData.picture || null,
-        answerData: null, // Profil tamamlanana kadar null
+        answerData: credential === 'guest' ? {} : null, // Misafir kullanıcı için boş obje (profil setup'a yönlendirilmez)
         accountCreatedDate: new Date().toISOString()
       };
 
-      const createdUser = await UserRepository.create(newUserData);
-      return new User(UserRepository.mapRowToUser(createdUser));
+      try {
+        const createdUser = await UserRepository.create(newUserData);
+        return new User(UserRepository.mapRowToUser(createdUser));
+      } catch (createError) {
+        // Eğer unique constraint hatası alırsak (migration çalıştırılmamışsa)
+        // ve misafir kullanıcı ise, mevcut kullanıcıyı bulup döndür
+        if (createError.code === 'ER_DUP_ENTRY' && credential === 'guest') {
+          console.log('⚠️ Unique constraint hatası - mevcut misafir kullanıcıyı arıyoruz...');
+          // Mevcut misafir kullanıcıyı bul (credential='guest' ve providerId ile)
+          const existingGuest = await UserRepository.findByCredential('guest', providerData.id);
+          if (existingGuest) {
+            const userData = UserRepository.mapRowToUser(existingGuest);
+            // Eğer answerData null ise, boş obje olarak güncelle
+            if (userData.answerData === null) {
+              await UserRepository.update(existingGuest.id, { answerData: {} });
+              userData.answerData = {};
+            }
+            // Username'i "Guest user" olarak güncelle (eğer değilse)
+            if (userData.username !== 'Guest user') {
+              await UserRepository.update(existingGuest.id, { username: 'Guest user' });
+              userData.username = 'Guest user';
+            }
+            return new User(userData);
+          }
+          // Eğer credential ile bulunamazsa, username ile dene (fallback)
+          const existingGuestByUsername = await UserRepository.findByUsername('Guest user');
+          if (existingGuestByUsername) {
+            const userData = UserRepository.mapRowToUser(existingGuestByUsername);
+            // Eğer answerData null ise, boş obje olarak güncelle
+            if (userData.answerData === null) {
+              await UserRepository.update(existingGuestByUsername.id, { answerData: {} });
+              userData.answerData = {};
+            }
+            return new User(userData);
+          }
+        }
+        // Diğer hatalar için orijinal hatayı fırlat
+        throw createError;
+      }
     } catch (error) {
       console.error('Error in findOrCreateUser:', error);
       throw error;
