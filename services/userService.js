@@ -70,8 +70,8 @@ class UserService {
         // Apple'dan gelen fullName'i username olarak kullan (trim yok, boşluklar korunur)
         username = providerData.name;
       } else {
-        // Diğer durumlarda geçici username oluştur
-        username = `temp_${providerData.id}_${Date.now()}`;
+        // Diğer durumlarda "MindCoach User" kullan (temp_ yerine)
+        username = 'MindCoach User';
       }
       
       const newUserData = {

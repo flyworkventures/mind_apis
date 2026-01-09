@@ -58,6 +58,52 @@ async function sendWelcomeNotification(userId, username) {
 }
 
 /**
+ * @route POST /auth/logout
+ * @desc Logout user - Revoke current token
+ * @header Authorization: Bearer <token>
+ */
+router.post("/logout", require("../middleware/auth").authenticate, async (req, res, next) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    
+    if (token) {
+      // Revoke token in database
+      await TokenRepository.revoke(token);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Logged out successfully"
+    });
+  } catch (error) {
+    console.error('Logout error:', error);
+    next(error);
+  }
+});
+
+/**
+ * @route POST /auth/logout-all
+ * @desc Logout from all devices - Revoke all tokens for user
+ * @header Authorization: Bearer <token>
+ */
+router.post("/logout-all", require("../middleware/auth").authenticate, async (req, res, next) => {
+  try {
+    const userId = req.userId;
+    
+    // Revoke all tokens for user
+    const revokedCount = await TokenRepository.revokeAll(userId);
+
+    res.status(200).json({
+      success: true,
+      message: `Logged out from ${revokedCount} device(s) successfully`
+    });
+  } catch (error) {
+    console.error('Logout all error:', error);
+    next(error);
+  }
+});
+
+/**
  * @route POST /auth/guest
  * @desc Create guest user account (anonymous login)
  * @body (no body required)
@@ -487,52 +533,6 @@ router.post("/profile/photo",
     }
   }
 );
-
-/**
- * @route POST /auth/logout
- * @desc Logout user - Revoke current token
- * @header Authorization: Bearer <token>
- */
-router.post("/logout", require("../middleware/auth").authenticate, async (req, res, next) => {
-  try {
-    const token = req.headers.authorization?.split(' ')[1];
-    
-    if (token) {
-      // Revoke token in database
-      await TokenRepository.revoke(token);
-    }
-
-    res.status(200).json({
-      success: true,
-      message: "Logged out successfully"
-    });
-  } catch (error) {
-    console.error('Logout error:', error);
-    next(error);
-  }
-});
-
-/**
- * @route POST /auth/logout-all
- * @desc Logout from all devices - Revoke all tokens for user
- * @header Authorization: Bearer <token>
- */
-router.post("/logout-all", require("../middleware/auth").authenticate, async (req, res, next) => {
-  try {
-    const userId = req.userId;
-    
-    // Revoke all tokens for user
-    const revokedCount = await TokenRepository.revokeAll(userId);
-
-    res.status(200).json({
-      success: true,
-      message: `Logged out from ${revokedCount} device(s) successfully`
-    });
-  } catch (error) {
-    console.error('Logout all error:', error);
-    next(error);
-  }
-});
 
 /**
  * @route DELETE /auth/account

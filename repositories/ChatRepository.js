@@ -143,6 +143,26 @@ class ChatRepository {
   }
 
   /**
+   * Delete chat by user and consultant
+   * @param {number} userId - User ID
+   * @param {number} consultantId - Consultant ID
+   * @returns {Promise<boolean>} Success status
+   */
+  static async deleteByUserAndConsultant(userId, consultantId) {
+    try {
+      const [result] = await pool.execute(
+        'DELETE FROM chats WHERE user_id = ? AND consultant_id = ?',
+        [userId, consultantId]
+      );
+      
+      return result.affectedRows > 0;
+    } catch (error) {
+      console.error('Error deleting chat by user and consultant:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Delete all chats for a user
    * @param {number} userId - User ID
    * @returns {Promise<number>} Number of deleted chats

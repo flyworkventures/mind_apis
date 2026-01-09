@@ -59,16 +59,8 @@ const io = new Server(server, {
   transports: ['websocket', 'polling']
 });
 
-// Setup Socket.IO handlers (legacy)
-new SocketHandler(io);
-
-// Initialize Realtime WebSocket Server (for phone call-like AI conversations)
-const RealtimeServer = require('./realtime/realtimeServer');
-const realtimeServer = new RealtimeServer(process.env.REALTIME_WS_PORT || 3001);
-realtimeServer.start();
-
 const PORT = process.env.PORT || 3014;
-server.listen(PORT, () => {
+server.listen(PORT, "0.0.0.0",() => {
   console.log(`Server started PORT: ${PORT}`);
   console.log(`Socket.IO server ready for legacy realtime connections`);
   console.log(`Realtime WebSocket server ready on port ${process.env.REALTIME_WS_PORT || 3001}`);

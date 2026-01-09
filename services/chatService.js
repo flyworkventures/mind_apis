@@ -41,7 +41,7 @@ class ChatService {
   static async sendToWebhook(webhookData, webhookUrl = null) {
     try {
       // Use provided webhook URL or default
-      const url = webhookUrl || 'http://89.252.179.227:5678/webhook-test/chat-assistant';
+      const url = webhookUrl || 'http://89.252.179.227:5678/webhook/chat-assistant';
       
       console.log(`[WEBHOOK] 📤 Sending to webhook: ${url}`);
       
@@ -258,6 +258,29 @@ class ChatService {
       return await MessageRepository.findByChatId(chat.chatId, options);
     } catch (error) {
       console.error('Error getting messages by consultant:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete chat by user and consultant
+   * @param {number} userId - User ID
+   * @param {number} consultantId - Consultant ID
+   * @returns {Promise<boolean>} Success status
+   */
+  static async deleteChat(userId, consultantId) {
+    try {
+      // Verify chat exists and belongs to user
+      const chat = await ChatRepository.findByUserAndConsultant(userId, consultantId);
+      if (!chat) {
+        // Chat doesn't exist, return false
+        return false;
+      }
+
+      // Delete chat (messages will be deleted automatically via CASCADE)
+      return await ChatRepository.deleteByUserAndConsultant(userId, consultantId);
+    } catch (error) {
+      console.error('Error deleting chat:', error);
       throw error;
     }
   }

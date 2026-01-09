@@ -395,5 +395,42 @@ router.get('/:chatId/messages', authenticate, async (req, res, next) => {
   }
 });
 
+/**
+ * @route DELETE /chats/consultant/:consultantId
+ * @desc Delete chat by consultant ID
+ * @header Authorization: Bearer <token>
+ * @param {number} consultantId - Consultant ID
+ */
+router.delete('/consultant/:consultantId', authenticate, async (req, res, next) => {
+  try {
+    const userId = req.userId;
+    const { consultantId } = req.params;
+
+    if (!consultantId || isNaN(consultantId)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid consultant ID'
+      });
+    }
+
+    const deleted = await ChatService.deleteChat(userId, parseInt(consultantId));
+
+    if (!deleted) {
+      return res.status(404).json({
+        success: false,
+        error: 'Chat not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Chat deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting chat:', error);
+    next(error);
+  }
+});
+
 module.exports = router;
 
